@@ -1,10 +1,11 @@
 
 /*	Universidade Federal de São Carlos, Campus Sorocaba
  *	Mergesort Paralelo (MPI)
- *  Autor:
+ *  Autores:
  *			Arthur Pessoa de Souza
+ * 			Jonathan André Varella Gangi
  *  Arquivo:
- *			main.c 
+ *			main.c
  *	Descrição:
  *			Arquivo que contém as funções principais, e implementa o paralelismo entre os processos
  */
@@ -24,7 +25,7 @@
 void init_workers(int nWorkers, int root, int N, int I);
 void finalize_workers();
 
-/*	Função: 
+/*	Função:
  *			main(void)
  *	Descrição:
  *			Função principal, onde é distribuída todas as tarefas para os processos
@@ -36,7 +37,7 @@ int main(void) {
 	int world_rank;   //pega o ranking do processo
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-	
+
 	int I; //Quantidade de Testes
 	int N; //Quantidade de elementos no vetor
 
@@ -58,12 +59,12 @@ int main(void) {
 				MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD); //mando em broadcast N
 				if(N){ //caso haja um vetor a ordenar, continue...
 					Vetor = (int*)malloc(N*sizeof(int)); //aloca espaço pro vetor
-					
+
 					int i,j;
-					for(i=0;i<N;++i) scanf("%d",&Vetor[i]); //lê o vetor	
+					for(i=0;i<N;++i) scanf("%d",&Vetor[i]); //lê o vetor
 
 
-					nWorkers = 2; //TODO: Descobrir uma fórmula pra saber quando vale a pena adicionar vários 
+					nWorkers = 2; //TODO: Descobrir uma fórmula pra saber quando vale a pena adicionar vários
 								//trabalhadores (tempo sequencial < (tempo_sequencial/nworkers) + overhead)
 
 
@@ -85,10 +86,10 @@ int main(void) {
 						}
 						printf("%f\n",(double)(stop-start)/CLOCKS_PER_SEC );//imprime o tempo de execução
 					}
-					
+
 					finalize_workers();
 					free(Vetor);
-				}	
+				}
 			}
 		}while(I);
 		MPI_Bcast(&I, 1, MPI_INT, 0, MPI_COMM_WORLD); //mando em broadcast o termino das tarefas
@@ -98,7 +99,7 @@ int main(void) {
 	*		 Trabalhadores
 	*--------------------------*/
 	else{
-		do{			
+		do{
 			MPI_Bcast(&I, 1, MPI_INT, COORDENADOR, MPI_COMM_WORLD);
 			if(I){
 				do{
@@ -113,7 +114,7 @@ int main(void) {
 							MPI_Recv(&active, 1, MPI_INT, COORDENADOR, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 							if(active){
 
-							
+
 
 
 
@@ -135,9 +136,9 @@ void init_workers(int nWorkers, int root, int N, int I)
 	int i;
 	int tam_subvetor = ceil(N/nWorkers);
 	for (i = 0; i < nWorkers; ++i)
-	{	
+	{
 		if(i!=root){
-			MPI_Send(&I, 1, MPI_INT, i, 0, MPI_COMM_WORLD);						
+			MPI_Send(&I, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
 			MPI_Send(&tam_subvetor, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 		}
 	}
@@ -148,5 +149,5 @@ void init_workers(int nWorkers, int root, int N, int I)
 
 void finalize_workers(){
 	int active = 0;
-	MPI_Send(&active, 1, MPI_INT, i, 2, MPI_COMM_WORLD);//indica que a sessão é a mesma	
+	MPI_Send(&active, 1, MPI_INT, i, 2, MPI_COMM_WORLD);//indica que a sessão é a mesma
 }
