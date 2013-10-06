@@ -40,3 +40,18 @@ void multimerge(int **subvetores, int  *tam_subvetores, int num_subvetores, int 
 void msort(int *A,int e, int d);
 
 
+/*	Função: 
+ *			first_i(int worker,int total_workers, int vsize)
+ *	Descrição:
+ *			Função em que retorna o primeiro elemento de um vetor dividido
+ */
+int first_i(int worker,int total_workers, int vsize);
+
+
+
+/*	Função: 
+ *			first_i(int worker,int total_workers, int vsize)
+ *	Descrição:
+ *			Função em que retorna o ultimo elemento de um vetor dividido
+ */
+int last_i(int worker,int total_workers, int vsize);

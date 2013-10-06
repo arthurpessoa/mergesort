@@ -11,7 +11,7 @@ program: main.o libsort.o
 	$(CC) main.o libsort.o -o $(PROGRAM)
 
 main.o: main.c
-	$(CC) $(CFLAGS) main.c
+	$(CC) $(CFLAGS) main.c timer.h
 
 libsort.o: libsort.c libsort.h
 	$(CC) $(CFLAGS) libsort.c

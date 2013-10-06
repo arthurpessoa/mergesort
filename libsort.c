@@ -85,3 +85,36 @@ void msort(int *A,int e, int d){
     }        
     free(B);//liberando B
 }
+
+/*  Função: 
+ *          first_i(int worker,int total_workers, int vsize)
+ *  Descrição:
+ *          Função em que retorna o primeiro elemento de um vetor dividido
+ */
+int first_i(int worker,int total_workers, int vsize)
+{
+    int first = floor((vsize/total_workers))*(worker);
+
+    if(worker<(vsize%total_workers)){
+        first+=worker;
+    }else
+        first+=vsize%total_workers;
+    return first;
+
+}
+
+/*  Função: 
+ *          first_i(int worker,int total_workers, int vsize)
+ *  Descrição:
+ *          Função em que retorna o ultimo elemento de um vetor dividido
+ */
+int last_i(int worker,int total_workers, int vsize)
+{
+    int last = floor(vsize/total_workers)*(worker+1);
+
+    if(worker<(vsize%total_workers)){
+        last+=worker;
+    }else
+        last+=vsize%total_workers-1;
+    return last;
+}
