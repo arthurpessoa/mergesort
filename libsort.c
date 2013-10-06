@@ -12,7 +12,7 @@
  *      int *vetorfinal     : Apontador para o vetor final, que deverá conter todos os subvetores ordenados mesclados
  */
 
-void multimerge(int **subvetores, int  *tam_subvetores, int num_subvetores, int *vetorfinal){
+void multimerge(int **subvetores,int  *tam_subvetores, int num_subvetores, int *vetorfinal){
     int i = 0; //apontador que guarda os indices pro vetor final
     int j = 0; //indice do mínimo da rodada
     int min; // valor mínimo da rodada

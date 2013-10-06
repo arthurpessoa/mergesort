@@ -1,11 +1,10 @@
-
 /*	Universidade Federal de São Carlos, Campus Sorocaba
  *	Mergesort Paralelo (MPI)
- *  Autores:
+ *  Autor:
  *			Arthur Pessoa de Souza
- * 			Jonathan André Varella Gangi
+ *			Jonathan André Varella Gangi
  *  Arquivo:
- *			main.c
+ *			main.c 
  *	Descrição:
  *			Arquivo que contém as funções principais, e implementa o paralelismo entre os processos
  */
@@ -18,14 +17,13 @@
 #include <math.h>
 #include <mpi.h>
 
-
 #define COORDENADOR 0 //Processo Mestre
 
+int first_i(int worker,int total_workers, int vsize);
+int last_i(int worker,int total_workers, int vsize);
 
-void init_workers(int nWorkers, int root, int N, int I);
-void finalize_workers();
 
-/*	Função:
+/*	Função: 
  *			main(void)
  *	Descrição:
  *			Função principal, onde é distribuída todas as tarefas para os processos
@@ -37,15 +35,14 @@ int main(void) {
 	int world_rank;   //pega o ranking do processo
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-
+	
 	int I; //Quantidade de Testes
 	int N; //Quantidade de elementos no vetor
 
 	int *Vetor; //vetor a ser ordenado
 	clock_t start, stop;
 
-	int nWorkers=0; //número de trabalhadores ativos (default 0 single-core)
-
+	
 	/*-------------------------*
 	*		 Coordenador
 	*--------------------------*/
@@ -54,42 +51,91 @@ int main(void) {
 		do{
 			scanf("%d",&I); //lê a quantidade de ordenações
 			if(I){ //caso haja ordenações a fazer, continue...
-				MPI_Bcast(&I, 1, MPI_INT, 0, MPI_COMM_WORLD); //mando em broadcast
 				scanf("%d",&N); //lê o tamanho do vetor
-				MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD); //mando em broadcast N
 				if(N){ //caso haja um vetor a ordenar, continue...
 					Vetor = (int*)malloc(N*sizeof(int)); //aloca espaço pro vetor
-
+					
 					int i,j;
-					for(i=0;i<N;++i) scanf("%d",&Vetor[i]); //lê o vetor
-
-
-					nWorkers = 2; //TODO: Descobrir uma fórmula pra saber quando vale a pena adicionar vários
-								//trabalhadores (tempo sequencial < (tempo_sequencial/nworkers) + overhead)
-
-
-
-
-					if(nWorkers>world_size)nWorkers=world_size; //caso o melhor caso seja com muitos trabalhadores, limitar para o número de processos
-					init_workers(nWorkers, COORDENADOR, N, I);
+					for(i=0;i<N;++i) scanf("%d",&Vetor[i]); //lê o vetor	
 
 					for(i=0;i<I;i++){
+						MPI_Bcast(&I, 1, MPI_INT, 0, MPI_COMM_WORLD); //mando em broadcast
+						//Vetores auxiliares
+						int **subvetor;
+						int * tam_subvetor;
+						tam_subvetor=(int*)malloc(world_size*sizeof(int));
+						subvetor = (int**)malloc(world_size*sizeof(int*));
+
+
+						//copiar o vetor auxiliar do coordenador
+						int first = first_i(COORDENADOR,world_size, N);
+						int last = last_i(COORDENADOR,world_size, N);
+						int vsize = last - first+1;
+
+						subvetor[COORDENADOR]= malloc(vsize*sizeof(int));
+						tam_subvetor[COORDENADOR]=vsize;
+
+
+						int k=0;
+						for(j=first;j<=last;j++){
+							subvetor[COORDENADOR][k]=Vetor[j];
+							k++;
+						}
+
+						for(j=0;j<world_size;++j)
+						{
+							if(j!=COORDENADOR){
+								first = first_i(j,world_size, N);
+								last = last_i(j,world_size, N);
+								vsize = last - first+1;
+
+								subvetor[j]= malloc(vsize*sizeof(int));
+								tam_subvetor[j]=vsize;
+							}
+						}
+
 						start = clock();
-						//MERGESORT
 
+						//----------------------MERGESORT PARALELO -------------------------
+						
+						//envio um pedaço do vetor pra cada processo						
+						for(j=0;j<world_size;++j)
+						{
+							if(j!=COORDENADOR){
+								
+								first = first_i(j,world_size, N);
+								MPI_Send(&tam_subvetor[j], 1, MPI_INT, j, 0, MPI_COMM_WORLD);
+								MPI_Send(Vetor+first, tam_subvetor[j], MPI_INT, j, 1, MPI_COMM_WORLD);
+							}
+						}						
+						msort(subvetor[COORDENADOR],0,tam_subvetor[COORDENADOR]-1); //enquanto isso o mestre ordena um pedaço também	
+						//Recebo os pedaços ordenados
+						for(j=0;j<world_size;++j)
+						{
+							if(j!=COORDENADOR){								
+								MPI_Recv(subvetor[j], tam_subvetor[j], MPI_INT, j, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+							} //DEADLOCK (?)
+						}
+						//junto os pedaços usando a ultima etapa do mergesort modificada
+						multimerge(subvetor, tam_subvetor, world_size, Vetor);
 
+						//------------------FIM MERGESORT----------------------------------
 						stop = clock();
-						//imprime os resultados
+			
+						
 						if(!i){ //caso seja a primeira ordenação, exibir o vetor ordenado
 							for(j=0;j<N;++j)printf("%d ",Vetor[j]);
 							printf("\n");
 						}
 						printf("%f\n",(double)(stop-start)/CLOCKS_PER_SEC );//imprime o tempo de execução
-					}
 
-					finalize_workers();
+						//desalocar os vetores auxiliares
+						free(tam_subvetor);
+						for(j=0;j<world_size;j++)free(subvetor[j]);
+					}
+					
 					free(Vetor);
-				}
+				}	
 			}
 		}while(I);
 		MPI_Bcast(&I, 1, MPI_INT, 0, MPI_COMM_WORLD); //mando em broadcast o termino das tarefas
@@ -99,55 +145,49 @@ int main(void) {
 	*		 Trabalhadores
 	*--------------------------*/
 	else{
-		do{
+		do{			
+
+			int RID = 1; //resp. ID
 			MPI_Bcast(&I, 1, MPI_INT, COORDENADOR, MPI_COMM_WORLD);
 			if(I){
-				do{
-					MPI_Bcast(&N, 1, MPI_INT, COORDENADOR, MPI_COMM_WORLD); //recebo N
-					if(N){
-						Vetor = (int*) malloc(N*sizeof(int)); //pré-aloco a memória, whatever memóra não é problema
-						int vsize;
-						MPI_Recv(&vsize, 1, MPI_INT, COORDENADOR, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-						MPI_Recv(Vetor, vsize, MPI_INT, COORDENADOR, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-						int active;
-						do{
-							MPI_Recv(&active, 1, MPI_INT, COORDENADOR, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-							if(active){
+				 MPI_Recv(&N, 1, MPI_INT, COORDENADOR, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);				 
+						 
+				 int *sVetor=(int*)malloc(N*sizeof(int));
+	
+				 MPI_Recv(sVetor, N, MPI_INT, COORDENADOR, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				 msort(sVetor,0,N-1);
 
+				 MPI_Send(sVetor, N, MPI_INT, COORDENADOR, RID, MPI_COMM_WORLD); //retorna o vetor ordenado pro coordenador
 
-
-
-
-							}
-						}while(active);
-					}
-					free(Vetor);
-				}while(N);
+				 free(sVetor);				 
 			}
 		}while(I);//se não tem mais trabalhos, vcs podem morrer gentem (China Feelings)
+		
 	}
 	MPI_Finalize(); //termina o MPI
  	return 0;
 }
 
-
-void init_workers(int nWorkers, int root, int N, int I)
+int first_i(int worker,int total_workers, int vsize)
 {
-	int i;
-	int tam_subvetor = ceil(N/nWorkers);
-	for (i = 0; i < nWorkers; ++i)
-	{
-		if(i!=root){
-			MPI_Send(&I, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-			MPI_Send(&tam_subvetor, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
-		}
-	}
-	int active = 1;
-	MPI_Send(&active, 1, MPI_INT, i, 2, MPI_COMM_WORLD);//indica que a sessão é a mesma
+	int first = floor((vsize/total_workers))*(worker);
+
+	if(worker<(vsize%total_workers)){
+		first+=worker;
+	}else
+		first+=vsize%total_workers;
+	return first;
+
+}
+int last_i(int worker,int total_workers, int vsize)
+{
+	int last = floor(vsize/total_workers)*(worker+1);
+
+	if(worker<(vsize%total_workers)){
+		last+=worker;
+	}else
+		last+=vsize%total_workers-1;
+	return last;
 }
 
 
-void finalize_workers(){
-	int active = 0;
-	MPI_Send(&active, 1, MPI_INT, i, 2, MPI_COMM_WORLD);//indica que a sessão é a mesma
-}
